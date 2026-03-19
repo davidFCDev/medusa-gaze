@@ -42,7 +42,7 @@ export const GameSettings = {
     /** Drenaje por segundo al usar la mirada */
     drainPerSecond: 14,
     /** Energía recuperada al romper una estatua */
-    gainPerBreak: 8,
+    gainPerBreak: 6,
     /** Regeneración pasiva por segundo (ojos cerrados) */
     regenPerSecond: 4,
   },
@@ -52,7 +52,7 @@ export const GameSettings = {
     /** Velocidad base en px/s */
     baseSpeed: 60,
     /** Intervalo base de spawn en ms */
-    spawnInterval: 1700,
+    spawnInterval: 1500,
     /** Intervalo mínimo de spawn (dificultad máxima) */
     minSpawnInterval: 300,
     /** Reducción de intervalo por oleada */
@@ -88,7 +88,7 @@ export const GameSettings = {
     /** Duración que un enemigo permanece petrificado antes de liberarse (ms) */
     petrifyDuration: 4000,
     /** Energía recuperada por enemigo roto con el Wrath */
-    energyPerKill: 7,
+    energyPerKill: 5,
   },
 
   // ── Mega Skill (Gorgon's Fury) ──────────────────────
