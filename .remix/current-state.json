@@ -1,6 +1,7 @@
 {
-  "id": "1773932275127-fu5g4jq7",
+  "id": "1773960306691-fsjcphmd",
   "gameState": {
-    "highScore": 0
+    "highScore": 270,
+    "tutorialSeen": true
   }
 }

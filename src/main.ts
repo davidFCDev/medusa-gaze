@@ -1,6 +1,7 @@
 const Phaser = (window as any).Phaser;
 import { getResponsiveDimensions } from "./config/GameSettings";
-import { GameScene } from "./scenes/GameScene";
+import { MedusaScene } from "./scenes/MedusaScene";
+import { PreloadScene } from "./scenes/PreloadScene";
 
 // Calcula dimensiones responsive (fullscreen dinámico)
 const dimensions = getResponsiveDimensions();
@@ -16,9 +17,11 @@ const config: Phaser.Types.Core.GameConfig = {
     width: dimensions.width,
     height: dimensions.height,
   },
-  transparent: false,
-  backgroundColor: "#1a0a2e",
-  scene: [GameScene],
+  transparent: true,
+  input: {
+    activePointers: 2,
+  },
+  scene: [PreloadScene, MedusaScene],
   fps: {
     target: 60,
   },

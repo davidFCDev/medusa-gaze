@@ -20,11 +20,19 @@ export const GameSettings = {
     /** Scale para mostrar en pantalla */
     scale: 1.8,
     /** Ángulo del cono de visión en grados (mitad a cada lado) */
-    gazeAngle: 45,
+    gazeAngle: 52,
     /** Alcance del cono de visión en px */
     gazeRange: 320,
     /** Tiempo (ms) que tarda en petrificar un enemigo */
     petrifyTime: 800,
+  },
+
+  // ── Vida ─────────────────────────────────────────────
+  health: {
+    /** Vida máxima */
+    max: 100,
+    /** Daño por segundo por cada enemigo atacando */
+    damagePerSecond: 15,
   },
 
   // ── Energía ─────────────────────────────────────────
@@ -32,11 +40,11 @@ export const GameSettings = {
     /** Energía máxima */
     max: 100,
     /** Drenaje por segundo al usar la mirada */
-    drainPerSecond: 18,
+    drainPerSecond: 14,
     /** Energía recuperada al romper una estatua */
-    gainPerBreak: 25,
+    gainPerBreak: 8,
     /** Regeneración pasiva por segundo (ojos cerrados) */
-    regenPerSecond: 3,
+    regenPerSecond: 4,
   },
 
   // ── Enemigos ────────────────────────────────────────
@@ -44,11 +52,11 @@ export const GameSettings = {
     /** Velocidad base en px/s */
     baseSpeed: 60,
     /** Intervalo base de spawn en ms */
-    spawnInterval: 2000,
+    spawnInterval: 1700,
     /** Intervalo mínimo de spawn (dificultad máxima) */
-    minSpawnInterval: 600,
+    minSpawnInterval: 300,
     /** Reducción de intervalo por oleada */
-    spawnAcceleration: 0.95,
+    spawnAcceleration: 0.88,
     /** Radio de colisión con Medusa para game over */
     hitRadius: 40,
     /** Tamaño del sprite del enemigo (hitbox) */
@@ -57,6 +65,8 @@ export const GameSettings = {
     pointsPerKill: 10,
     /** Incremento de velocidad por oleada */
     speedIncreasePerWave: 1.08,
+    /** Enemigos extra que aparecen de golpe por oleada */
+    burstPerWave: 3,
     /** Distancia a Medusa para empezar a atacar */
     attackRange: 90,
     /** Scale del sprite enemigo */
@@ -71,6 +81,40 @@ export const GameSettings = {
     breakRadius: 80,
   },
 
+  // ── Wrath (Medusa's Wrath) ──────────────────────────
+  wrath: {
+    /** Cooldown en ms entre usos */
+    cooldown: 1500,
+    /** Duración que un enemigo permanece petrificado antes de liberarse (ms) */
+    petrifyDuration: 4000,
+    /** Energía recuperada por enemigo roto con el Wrath */
+    energyPerKill: 7,
+  },
+
+  // ── Mega Skill (Gorgon's Fury) ──────────────────────
+  megaSkill: {
+    /** Carga necesaria para activar (0-100) */
+    maxCharge: 100,
+    /** Carga ganada por cada enemigo petrificado eliminado */
+    chargePerKill: 3,
+    /** Bonus de carga por combo (×n enemigos en un wrath) */
+    comboMultiplier: 1.2,
+    /** Puntos bonus al activar la megaskill */
+    bonusPoints: 50,
+  },
+
+  // ── Joystick (Mobile) ───────────────────────────────
+  joystick: {
+    /** Radio del joystick en px */
+    radius: 60,
+    /** Zona muerta (no registra dirección) */
+    deadZone: 15,
+    /** Alpha del fondo del joystick */
+    baseAlpha: 0.15,
+    /** Alpha del thumb del joystick */
+    thumbAlpha: 0.3,
+  },
+
   // ── Visual ──────────────────────────────────────────
   visual: {
     /** Color del cono de visión */
@@ -79,12 +123,16 @@ export const GameSettings = {
     gazeAlpha: 0.18,
     /** Color de la barra de energía */
     energyBarColor: 0x00ff88,
-    /** Color de fondo de la barra de energía */
-    energyBarBg: 0x222222,
-    /** Color del enemigo petrificado */
-    petrifiedTint: 0x888888,
+    /** Color de fondo de las barras */
+    barBg: 0x222222,
+    /** Color del enemigo petrificado (gris claro) */
+    petrifiedTint: 0x999999,
     /** Color del borde de la barra de energía */
     energyBarBorder: 0x44aa66,
+    /** Color de la barra de vida */
+    healthBarColor: 0xff4444,
+    /** Color del borde de la barra de vida */
+    healthBarBorder: 0xaa3333,
   },
 
   // ── Assets URLs ─────────────────────────────────────
@@ -99,6 +147,8 @@ export const GameSettings = {
       "https://remix.gg/blob/89c28be5-ba6a-4a5b-8024-bc07694d0f3b/medusa-gaze-attack-LdNGuYTsek-nfF2ViHdqEAwQjLLb9vyBiueVZ6qpI.webp?djbe",
     spartan:
       "https://remix.gg/blob/89c28be5-ba6a-4a5b-8024-bc07694d0f3b/spartan-1FxvCG9vwK-2tPnHMzsyHHHOADDz0IQoqFgQMEiny.webp?y4t7",
+    medusaHit:
+      "https://remix.gg/blob/89c28be5-ba6a-4a5b-8024-bc07694d0f3b/medusa-hit-ZHLxUxvhh5-XSokrDfmuaMpn89PurKG2JDbcCZJin.webp?ordg",
   },
 
   // ── Sprites config ──────────────────────────────────
@@ -125,12 +175,21 @@ export const GameSettings = {
       rows: 4,
       directions: { down: 0, left: 1, right: 2, up: 3 },
     },
+    hit: {
+      frameWidth: 128,
+      frameHeight: 128,
+      columns: 2,
+      rows: 4,
+      directions: { down: 0, left: 1, right: 2, up: 3 },
+    },
     /** Spartan spritesheet: 832x1344, 13 cols x 21 rows, frame 64x64 */
     spartan: {
       frameWidth: 64,
       frameHeight: 64,
       columns: 13,
       rows: 21,
+      walkFrames: 9,
+      attackFrames: 8,
       walk: { up: 8, left: 9, down: 10, right: 11 },
       attack: { up: 4, left: 5, down: 6, right: 7 },
     },

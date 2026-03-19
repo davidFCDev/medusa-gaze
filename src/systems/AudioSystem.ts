@@ -118,6 +118,39 @@ export class AudioSystem {
     osc.stop(now + 0.15);
   }
 
+  /** Sonido sutil al eliminar enemigo — tintineo cristalino que se apaga */
+  playKill(): void {
+    if (!this.ctx || this.isMuted) return;
+    const now = this.ctx.currentTime;
+
+    // Nota alta cristalina suave
+    const osc1 = this.ctx.createOscillator();
+    const g1 = this.ctx.createGain();
+    osc1.type = "sine";
+    osc1.frequency.setValueAtTime(1400, now);
+    osc1.frequency.exponentialRampToValueAtTime(800, now + 0.2);
+    g1.gain.setValueAtTime(0.06, now);
+    g1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc1.connect(g1);
+    g1.connect(this.ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.25);
+
+    // Armónico suave con delay
+    const osc2 = this.ctx.createOscillator();
+    const g2 = this.ctx.createGain();
+    osc2.type = "triangle";
+    osc2.frequency.setValueAtTime(2100, now + 0.05);
+    osc2.frequency.exponentialRampToValueAtTime(1200, now + 0.2);
+    g2.gain.setValueAtTime(0.001, now);
+    g2.gain.linearRampToValueAtTime(0.04, now + 0.05);
+    g2.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+    osc2.connect(g2);
+    g2.connect(this.ctx.destination);
+    osc2.start(now);
+    osc2.stop(now + 0.3);
+  }
+
   /** Sonido de mirada activa (loop sutil, pulso) */
   playGazeLoop(): void {
     // Implementar si se quiere un tono continuo
