@@ -474,19 +474,7 @@ export class MedusaScene extends Phaser.Scene {
       return;
     }
 
-    // Safety: if tutorial overlay fails or doesn't dismiss, force start after 5s
-    const fallbackTimer = this.time.delayedCall(5000, () => {
-      if (!this.isPlaying) {
-        this.tutorialOverlay?.destroy();
-        this.tutorialOverlay = null;
-        this.tutorialSeen = true;
-        this.saveTutorialSeen();
-        this.startGame();
-      }
-    });
-
     this.tutorialOverlay = new TutorialOverlay(this, this.isMobile, () => {
-      fallbackTimer.destroy();
       this.tutorialOverlay = null;
       this.tutorialSeen = true;
       this.saveTutorialSeen();

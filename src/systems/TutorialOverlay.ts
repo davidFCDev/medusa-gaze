@@ -51,19 +51,23 @@ export class TutorialOverlay {
       .setDepth(501);
     elements.push(subtitle);
 
-    // ── Instructions (only 2) ──
+    // ── Instructions ──
     const instructions = isMobile
       ? [
           { text: "JOYSTICK to aim\nyour petrifying gaze" },
-          { text: "TAP \ud83d\udc80 to unleash\nMedusa's Wrath" },
+          { text: "Enemies unfreeze fast!\nManage your energy" },
+          { text: "TAP 💀 to shatter\nall petrified enemies" },
+          { text: "Kill combos charge\nyour MEGA SKILL ⚡" },
         ]
       : [
           { text: "WASD / ARROWS to aim\nyour petrifying gaze" },
-          { text: "SPACE to unleash\nMedusa's Wrath" },
+          { text: "Enemies unfreeze fast!\nManage your energy" },
+          { text: "SPACE to shatter\nall petrified enemies" },
+          { text: "Kill combos charge\nyour MEGA SKILL ⚡" },
         ];
 
-    const startY = h * 0.42;
-    const rowHeight = h * 0.09;
+    const startY = h * 0.39;
+    const rowHeight = h * 0.095;
 
     instructions.forEach((item, idx) => {
       const y = startY + idx * rowHeight;
@@ -85,7 +89,7 @@ export class TutorialOverlay {
     });
 
     // ── FIGHT button ──
-    const btnY = h * 0.62;
+    const btnY = h * 0.82;
     const btnW = 260;
     const btnH = 64;
 
@@ -118,9 +122,8 @@ export class TutorialOverlay {
     btnFill.setInteractive({ useHandCursor: true });
     btnFill.on("pointerdown", () => this.dismiss());
 
-    // Tap anywhere on BG also dismisses
+    // BG blocks input but does NOT dismiss
     bg.setInteractive();
-    bg.on("pointerdown", () => this.dismiss());
 
     // Container for easy cleanup
     this.container = this.scene.add.container(0, 0, elements);
