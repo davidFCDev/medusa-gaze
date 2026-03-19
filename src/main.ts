@@ -16,16 +16,14 @@ const config: Phaser.Types.Core.GameConfig = {
     width: dimensions.width,
     height: dimensions.height,
   },
-  transparent: true,
+  transparent: false,
+  backgroundColor: "#1a0a2e",
   scene: [GameScene],
-  physics: {
-    default: "arcade",
-  },
   fps: {
     target: 60,
   },
-  pixelArt: false,
-  antialias: true,
+  pixelArt: true,
+  antialias: false,
 };
 
 // Create the game instance

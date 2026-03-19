@@ -1,3 +1,2 @@
-// This file re-exports the demo scene
-// To remove the demo and start fresh, ask your AI assistant
-export { DemoScene as GameScene } from './DemoScene'
+// Main game scene - Medusa's Gaze
+export { MedusaScene as GameScene } from "./MedusaScene";
