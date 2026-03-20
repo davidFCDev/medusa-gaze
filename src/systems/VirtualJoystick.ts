@@ -12,6 +12,7 @@ export class VirtualJoystick {
   private thumb: Phaser.GameObjects.Arc;
 
   private direction: Direction | null = null;
+  private angle: number | null = null; // ángulo exacto en radianes
   private active: boolean = false;
   private pointerId: number = -1;
   private baseX: number = 0;
@@ -95,13 +96,17 @@ export class VirtualJoystick {
     }
     this.thumb.setPosition(thumbX, thumbY);
 
-    // Calcular dirección cardinal
+    // Calcular dirección cardinal + ángulo exacto
     if (dist < this.deadZone) {
       this.direction = null;
-    } else if (Math.abs(dx) > Math.abs(dy)) {
-      this.direction = dx > 0 ? "right" : "left";
+      this.angle = null;
     } else {
-      this.direction = dy > 0 ? "down" : "up";
+      this.angle = Math.atan2(dy, dx);
+      if (Math.abs(dx) > Math.abs(dy)) {
+        this.direction = dx > 0 ? "right" : "left";
+      } else {
+        this.direction = dy > 0 ? "down" : "up";
+      }
     }
   }
 
@@ -111,6 +116,7 @@ export class VirtualJoystick {
 
     this.pointerId = -1;
     this.direction = null;
+    this.angle = null;
     this.active = false;
     this.base.setVisible(false);
     this.thumb.setVisible(false);
@@ -125,6 +131,11 @@ export class VirtualJoystick {
   /** Dirección actual del joystick (null = centro / inactivo) */
   getDirection(): Direction | null {
     return this.direction;
+  }
+
+  /** Ángulo exacto del joystick en radianes (null = inactivo) */
+  getAngle(): number | null {
+    return this.angle;
   }
 
   /** ¿Está activo el joystick? */

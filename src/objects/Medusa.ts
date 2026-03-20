@@ -12,6 +12,9 @@ export class Medusa {
   private hitTimer: number = 0;
   private hitDuration: number = 300; // ms que dura la animación de hit
 
+  /** Ángulo exacto de la mirada en radianes (free-aim) */
+  public gazeAngleRad: number = Math.PI / 2; // default: down
+
   /** Cono gráfico de la mirada */
   public gazeCone!: Phaser.GameObjects.Graphics;
 
@@ -105,12 +108,43 @@ export class Medusa {
     this.hideGazeCone();
   }
 
-  /** Reproduce ataque en la dirección indicada */
-  playAttack(dir: Direction): void {
+  /** Reproduce ataque. angleRad = ángulo exacto (free‑aim). Sprite usa cardinal más cercano. */
+  playAttack(dir: Direction, angleRad?: number): void {
     this.direction = dir;
+    this.gazeAngleRad = angleRad ?? Medusa.dirToAngle(dir);
     this.isGazing = true;
     this.sprite.play(`medusa-attack-${this.direction}`, true);
     this.drawGazeCone();
+  }
+
+  /** Actualiza solo el ángulo del cono sin cambiar sprite (smooth joystick) */
+  setGazeAngle(angleRad: number): void {
+    this.gazeAngleRad = angleRad;
+  }
+
+  /** Convierte ángulo (rad) a dirección cardinal más cercana */
+  static angleToDir(rad: number): Direction {
+    const deg = Phaser.Math.RadToDeg(rad);
+    // Normalizar a [0, 360)
+    const n = ((deg % 360) + 360) % 360;
+    if (n >= 315 || n < 45) return "right";
+    if (n >= 45 && n < 135) return "down";
+    if (n >= 135 && n < 225) return "left";
+    return "up";
+  }
+
+  /** Convierte dirección cardinal a ángulo en radianes */
+  static dirToAngle(dir: Direction): number {
+    switch (dir) {
+      case "right":
+        return 0;
+      case "down":
+        return Math.PI / 2;
+      case "left":
+        return Math.PI;
+      case "up":
+        return -Math.PI / 2;
+    }
   }
 
   /** Reproduce muerte */
@@ -151,7 +185,7 @@ export class Medusa {
     }
   }
 
-  /** Dibuja el cono de visión */
+  /** Dibuja el cono de visión usando gazeAngleRad (free-aim) */
   drawGazeCone(): void {
     this.gazeCone.clear();
 
@@ -159,25 +193,9 @@ export class Medusa {
     const color = GameSettings.visual.gazeColor;
     const alpha = GameSettings.visual.gazeAlpha;
 
-    // Ángulo central según dirección
-    let centerAngle = 0;
-    switch (this.direction) {
-      case "up":
-        centerAngle = -90;
-        break;
-      case "down":
-        centerAngle = 90;
-        break;
-      case "left":
-        centerAngle = 180;
-        break;
-      case "right":
-        centerAngle = 0;
-        break;
-    }
-
-    const startAngle = Phaser.Math.DegToRad(centerAngle - gazeAngle);
-    const endAngle = Phaser.Math.DegToRad(centerAngle + gazeAngle);
+    const halfCone = Phaser.Math.DegToRad(gazeAngle);
+    const startAngle = this.gazeAngleRad - halfCone;
+    const endAngle = this.gazeAngleRad + halfCone;
 
     const x = this.sprite.x;
     const y = this.sprite.y;
@@ -203,7 +221,7 @@ export class Medusa {
     this.gazeCone.clear();
   }
 
-  /** Comprueba si un punto está dentro del cono de visión */
+  /** Comprueba si un punto está dentro del cono de visión (free-aim) */
   isInGaze(targetX: number, targetY: number): boolean {
     if (!this.isGazing) return false;
 
@@ -211,33 +229,15 @@ export class Medusa {
     const x = this.sprite.x;
     const y = this.sprite.y;
 
-    // Distancia
     const dx = targetX - x;
     const dy = targetY - y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance > gazeRange) return false;
 
-    // Ángulo central según dirección
-    let centerAngle = 0;
-    switch (this.direction) {
-      case "up":
-        centerAngle = -90;
-        break;
-      case "down":
-        centerAngle = 90;
-        break;
-      case "left":
-        centerAngle = 180;
-        break;
-      case "right":
-        centerAngle = 0;
-        break;
-    }
+    const angleToTarget = Math.atan2(dy, dx);
+    let diff = Phaser.Math.RadToDeg(angleToTarget - this.gazeAngleRad);
 
-    const angleToTarget = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
-    let diff = angleToTarget - centerAngle;
-
-    // Normalizar ángulo entre -180 y 180
+    // Normalizar a [-180, 180]
     while (diff > 180) diff -= 360;
     while (diff < -180) diff += 360;
 
@@ -246,16 +246,7 @@ export class Medusa {
 
   /** Devuelve ángulo central en radianes */
   getGazeCenterAngle(): number {
-    switch (this.direction) {
-      case "up":
-        return Phaser.Math.DegToRad(-90);
-      case "down":
-        return Phaser.Math.DegToRad(90);
-      case "left":
-        return Phaser.Math.DegToRad(180);
-      case "right":
-        return Phaser.Math.DegToRad(0);
-    }
+    return this.gazeAngleRad;
   }
 
   destroy(): void {

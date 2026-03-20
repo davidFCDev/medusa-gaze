@@ -51,6 +51,11 @@ export class EnergySystem {
     return this.energy / this.maxEnergy;
   }
 
+  /** Set energy to a specific percentage (0-1) */
+  setPercent(pct: number): void {
+    this.energy = this.maxEnergy * Math.max(0, Math.min(1, pct));
+  }
+
   reset(): void {
     this.energy = this.maxEnergy;
   }

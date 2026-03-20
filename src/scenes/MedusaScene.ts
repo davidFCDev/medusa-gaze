@@ -31,6 +31,7 @@ export class MedusaScene extends Phaser.Scene {
 
   // Gaze
   private currentGazeDir: Direction | null = null;
+  private currentGazeAngle: number | null = null; // free-aim angle (rad)
 
   // Keyboard
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
@@ -45,6 +46,7 @@ export class MedusaScene extends Phaser.Scene {
 
   // Mobile joystick gaze tracking
   private joystickGazeDir: Direction | null = null;
+  private joystickGazeAngle: number | null = null;
 
   // Device
   private isMobile: boolean = false;
@@ -55,6 +57,9 @@ export class MedusaScene extends Phaser.Scene {
   // Tutorial
   private tutorialSeen: boolean = false;
   private tutorialOverlay: TutorialOverlay | null = null;
+
+  // Revive
+  private reviveUsedThisRun: boolean = false;
 
   // Music
   private bgm!: Phaser.Sound.BaseSound;
@@ -153,7 +158,9 @@ export class MedusaScene extends Phaser.Scene {
       if (this.isMobile && this.joystick.releasePointer(pointer)) {
         if (this.joystickGazeDir !== null) {
           this.joystickGazeDir = null;
+          this.joystickGazeAngle = null;
           this.currentGazeDir = null;
+          this.currentGazeAngle = null;
           this.medusa.playIdle();
           this.enemySystem.cancelGaze();
         }
@@ -204,7 +211,7 @@ export class MedusaScene extends Phaser.Scene {
     this.isPlaying = true;
   }
 
-  /** Keyboard: detecta dirección con Arrows/WASD, Space activates Wrath */
+  /** Keyboard: detecta dirección con Arrows/WASD (soporta diagonales), Space activates Wrath */
   private handleKeyboard(): void {
     if (!this.input.keyboard) return;
 
@@ -213,39 +220,60 @@ export class MedusaScene extends Phaser.Scene {
       this.wrathButton.tryActivate();
     }
 
-    let dir: Direction | null = null;
-    if (this.cursors?.up?.isDown || this.wasd?.W?.isDown) dir = "up";
-    if (this.cursors?.down?.isDown || this.wasd?.S?.isDown) dir = "down";
-    if (this.cursors?.left?.isDown || this.wasd?.A?.isDown) dir = "left";
-    if (this.cursors?.right?.isDown || this.wasd?.D?.isDown) dir = "right";
+    // Acumular ejes X/Y para diagonales
+    let dx = 0;
+    let dy = 0;
+    if (this.cursors?.up?.isDown || this.wasd?.W?.isDown) dy -= 1;
+    if (this.cursors?.down?.isDown || this.wasd?.S?.isDown) dy += 1;
+    if (this.cursors?.left?.isDown || this.wasd?.A?.isDown) dx -= 1;
+    if (this.cursors?.right?.isDown || this.wasd?.D?.isDown) dx += 1;
 
-    if (dir && this.energySystem.hasEnergy()) {
+    const hasInput = dx !== 0 || dy !== 0;
+
+    if (hasInput && this.energySystem.hasEnergy()) {
+      const angleRad = Math.atan2(dy, dx);
+      const dir = Medusa.angleToDir(angleRad);
+
       if (!this.keyGazeActive || dir !== this.currentGazeDir) {
         this.currentGazeDir = dir;
-        this.medusa.playAttack(dir);
+        this.medusa.playAttack(dir, angleRad);
         this.audioSystem.init();
+      } else {
+        // Mismo sprite, actualizar solo ángulo del cono
+        this.medusa.setGazeAngle(angleRad);
       }
+      this.currentGazeAngle = angleRad;
       this.keyGazeActive = true;
-    } else if (this.keyGazeActive && !dir) {
+    } else if (this.keyGazeActive && !hasInput) {
       this.keyGazeActive = false;
       this.stopGaze();
     }
   }
 
-  /** Joystick: lee dirección y aplica gaze (mobile) */
+  /** Joystick: lee ángulo libre y aplica gaze (mobile) */
   private handleJoystick(): void {
     if (!this.joystick.isActive()) return;
 
+    const angle = this.joystick.getAngle();
     const dir = this.joystick.getDirection();
 
-    if (dir && this.energySystem.hasEnergy()) {
-      if (dir !== this.joystickGazeDir) {
-        this.joystickGazeDir = dir;
-        this.currentGazeDir = dir;
-        this.medusa.playAttack(dir);
+    if (dir && angle !== null && this.energySystem.hasEnergy()) {
+      const spriteDir = Medusa.angleToDir(angle);
+
+      if (spriteDir !== this.joystickGazeDir) {
+        // Cambio de sprite cardinal
+        this.joystickGazeDir = spriteDir;
+        this.currentGazeDir = spriteDir;
+        this.medusa.playAttack(spriteDir, angle);
+      } else {
+        // Mismo sprite, solo actualizar ángulo del cono
+        this.medusa.setGazeAngle(angle);
       }
+      this.joystickGazeAngle = angle;
+      this.currentGazeAngle = angle;
     } else if (this.joystickGazeDir !== null && !dir) {
       this.joystickGazeDir = null;
+      this.joystickGazeAngle = null;
       this.stopGaze();
     }
   }
@@ -253,6 +281,7 @@ export class MedusaScene extends Phaser.Scene {
   /** Para la mirada y cancela petrificación */
   private stopGaze(): void {
     this.currentGazeDir = null;
+    this.currentGazeAngle = null;
     this.medusa.playIdle();
     this.enemySystem.cancelGaze();
   }
@@ -294,6 +323,7 @@ export class MedusaScene extends Phaser.Scene {
         this.stopGaze();
         this.keyGazeActive = false;
         this.joystickGazeDir = null;
+        this.joystickGazeAngle = null;
       }
     } else if (!this.medusa.isGazing) {
       this.energySystem.regen(delta);
@@ -342,6 +372,12 @@ export class MedusaScene extends Phaser.Scene {
   //  GAME OVER
   // ═══════════════════════════════════════════════════
   private triggerGameOver(): void {
+    // Check if revive is available (one per run)
+    if (!this.reviveUsedThisRun && this.hasReviveAvailable()) {
+      this.useRevive();
+      return;
+    }
+
     this.isGameOver = true;
     this.isPlaying = false;
 
@@ -361,6 +397,136 @@ export class MedusaScene extends Phaser.Scene {
     });
   }
 
+  // ═══════════════════════════════════════════════════
+  //  REVIVE SYSTEM
+  // ═══════════════════════════════════════════════════
+  /** Check if player owns the permanent revive item */
+  private hasReviveAvailable(): boolean {
+    const sdk = (window as any).RemixSDK || (window as any).FarcadeSDK;
+    if (!sdk) return false;
+    return sdk.hasItem ? sdk.hasItem("revive") : false;
+  }
+
+  /** Update HUD revive indicator */
+  private updateReviveIndicator(): void {
+    const available = !this.reviveUsedThisRun && this.hasReviveAvailable();
+    this.hudSystem.setReviveAvailable(available);
+  }
+
+  /** Use revive: consume one, play animation, kill all enemies, restore HP */
+  private useRevive(): void {
+    this.reviveUsedThisRun = true;
+    this.isPlaying = false;
+    this.hudSystem.setReviveAvailable(false);
+
+    // Freeze everything
+    this.haptic();
+
+    // Dark flash
+    this.cameras.main.flash(300, 0, 255, 100);
+
+    // Medusa "hurt" tint
+    this.medusa.sprite.setTint(0xff4444);
+
+    // Phase 1: Pause briefly (300ms), then start revival
+    this.time.delayedCall(300, () => {
+      // Clear hit tint
+      this.medusa.sprite.clearTint();
+
+      // Green glow expanding from Medusa
+      const cx = this.medusa.sprite.x;
+      const cy = this.medusa.sprite.y;
+
+      // Create shockwave rings
+      for (let i = 0; i < 3; i++) {
+        this.time.delayedCall(i * 200, () => {
+          const ring = this.add.circle(cx, cy, 20, 0x000000, 0);
+          ring.setStrokeStyle(4, 0x00ff88, 0.9);
+          ring.setDepth(50);
+
+          this.tweens.add({
+            targets: ring,
+            radius: 400 + i * 80,
+            alpha: 0,
+            duration: 800,
+            ease: "Sine.easeOut",
+            onUpdate: () => {
+              ring.setStrokeStyle(4, 0x00ff88, ring.alpha);
+            },
+            onComplete: () => ring.destroy(),
+          });
+        });
+      }
+
+      // Green flash on Medusa — "revive glow"
+      const glow = this.add.circle(cx, cy, 30, 0x00ff88, 0.6);
+      glow.setDepth(49);
+      this.tweens.add({
+        targets: glow,
+        radius: 120,
+        alpha: 0,
+        duration: 600,
+        ease: "Cubic.easeOut",
+        onComplete: () => glow.destroy(),
+      });
+
+      // Revive text
+      const reviveText = this.add
+        .text(cx, cy - 80, "🧪 REVIVE!", {
+          fontFamily: "monospace",
+          fontSize: "40px",
+          color: "#00ff88",
+          stroke: "#003322",
+          strokeThickness: 6,
+        })
+        .setOrigin(0.5)
+        .setDepth(60);
+
+      this.tweens.add({
+        targets: reviveText,
+        y: cy - 140,
+        alpha: 0,
+        duration: 1200,
+        ease: "Cubic.easeOut",
+        onComplete: () => reviveText.destroy(),
+      });
+
+      // Phase 2: After shockwave (600ms), destroy all enemies
+      this.time.delayedCall(600, () => {
+        const result = this.enemySystem.destroyAllEnemies();
+        this.score += result.points;
+        this.hudSystem.updateScore(this.score, this.highScore);
+        if (result.destroyed > 0) {
+          this.audioSystem.playBreak();
+          this.audioSystem.playKill();
+        }
+
+        // Restore health to 50%
+        this.health = GameSettings.health.max * 0.5;
+        this.hudSystem.updateHealth(this.health / GameSettings.health.max);
+
+        // Restore energy to 50%
+        this.energySystem.setPercent(0.5);
+        this.hudSystem.updateEnergy(this.energySystem.getPercent());
+
+        // Green camera flash
+        this.cameras.main.flash(400, 0, 200, 100);
+
+        // Medusa plays idle
+        this.medusa.isDead = false;
+        this.medusa.isHit = false;
+        this.medusa.sprite.clearTint();
+        this.medusa.playIdle("down");
+
+        // Phase 3: Resume game after a short pause
+        this.time.delayedCall(500, () => {
+          this.isPlaying = true;
+          this.enemySystem.start();
+        });
+      });
+    });
+  }
+
   private restartGame(): void {
     this.enemySystem.reset();
     this.energySystem.reset();
@@ -375,8 +541,10 @@ export class MedusaScene extends Phaser.Scene {
     this.waveTimer = 0;
     this.isGameOver = false;
     this.currentGazeDir = null;
+    this.currentGazeAngle = null;
     this.keyGazeActive = false;
     this.joystickGazeDir = null;
+    this.joystickGazeAngle = null;
 
     // Reset wrath button
     this.wrathButton.reset();
@@ -388,6 +556,10 @@ export class MedusaScene extends Phaser.Scene {
     this.hudSystem.updateScore(this.score, this.highScore);
     this.hudSystem.updateHealth(1);
     this.hudSystem.updateEnergy(1);
+
+    // Reset revive for new run
+    this.reviveUsedThisRun = false;
+    this.updateReviveIndicator();
 
     // Restart BGM if not playing
     if (this.bgm && !this.bgm.isPlaying) {
@@ -453,6 +625,16 @@ export class MedusaScene extends Phaser.Scene {
           this.sound.mute = data.isMuted;
         });
       }
+
+      // Listen for revive purchases
+      if (sdk.onPurchaseComplete) {
+        sdk.onPurchaseComplete(() => {
+          this.updateReviveIndicator();
+        });
+      }
+
+      // Update revive indicator with initial state
+      this.updateReviveIndicator();
 
       this.sdkReady = true;
     } catch (e) {

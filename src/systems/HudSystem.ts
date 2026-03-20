@@ -31,6 +31,11 @@ export class HudSystem {
   private scoreBadge!: Phaser.GameObjects.Graphics;
   private scoreText!: Phaser.GameObjects.Text;
 
+  // Revive indicator
+  private reviveIcon!: Phaser.GameObjects.Text;
+  private reviveGlow!: Phaser.GameObjects.Graphics;
+  private hasRevive: boolean = false;
+
   private barWidth = 340;
   private barHeight = 36;
 
@@ -90,6 +95,18 @@ export class HudSystem {
       .setFillStyle(0x000000, 0)
       .setOrigin(0.5)
       .setDepth(102);
+
+    // ── Revive indicator (right of health bar) ──
+    const reviveX = barCenterX + this.barWidth / 2 + 28;
+    this.reviveGlow = this.scene.add.graphics();
+    this.reviveGlow.setDepth(99);
+    this.reviveGlow.setAlpha(0);
+
+    this.reviveIcon = this.scene.add
+      .text(reviveX, healthY, "🧪", { fontSize: "28px" })
+      .setOrigin(0.5)
+      .setDepth(100)
+      .setAlpha(0);
 
     // ── Energy Bar (debajo) ──
     const energyY = healthY + this.barHeight + 12;
@@ -303,6 +320,20 @@ export class HudSystem {
     });
   }
 
+  /** Show/hide the revive potion icon */
+  setReviveAvailable(available: boolean): void {
+    if (available === this.hasRevive) return;
+    this.hasRevive = available;
+
+    if (available) {
+      this.reviveIcon.setAlpha(1);
+      this.reviveGlow.setAlpha(1);
+    } else {
+      this.reviveIcon.setAlpha(0);
+      this.reviveGlow.setAlpha(0);
+    }
+  }
+
   destroy(): void {
     this.healthBarBg.destroy();
     this.healthBarFill.destroy();
@@ -313,6 +344,8 @@ export class HudSystem {
     this.energyBarBorder.destroy();
     this.energyIcon.destroy();
     this.energyGlow.destroy();
+    this.reviveIcon.destroy();
+    this.reviveGlow.destroy();
     this.scoreBadge.destroy();
     this.scoreText.destroy();
   }
