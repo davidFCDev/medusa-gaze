@@ -143,8 +143,9 @@ export class VirtualJoystick {
     return this.active;
   }
 
-  private isInZone(x: number, y: number): boolean {
-    return x < this.zoneMaxX && y > this.zoneMinY;
+  private isInZone(_x: number, _y: number): boolean {
+    // Allow joystick activation from anywhere on screen
+    return true;
   }
 
   destroy(): void {
