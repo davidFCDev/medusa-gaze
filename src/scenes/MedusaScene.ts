@@ -58,9 +58,6 @@ export class MedusaScene extends Phaser.Scene {
   private tutorialSeen: boolean = false;
   private tutorialOverlay: TutorialOverlay | null = null;
 
-  // Revive
-  private reviveUsedThisRun: boolean = false;
-
   // Music
   private bgm!: Phaser.Sound.BaseSound;
 
@@ -372,12 +369,6 @@ export class MedusaScene extends Phaser.Scene {
   //  GAME OVER
   // ═══════════════════════════════════════════════════
   private triggerGameOver(): void {
-    // Check if revive is available (one per run)
-    if (!this.reviveUsedThisRun && this.hasReviveAvailable()) {
-      this.useRevive();
-      return;
-    }
-
     this.isGameOver = true;
     this.isPlaying = false;
 
@@ -394,136 +385,6 @@ export class MedusaScene extends Phaser.Scene {
 
     this.time.delayedCall(1000, () => {
       this.sdkGameOver();
-    });
-  }
-
-  // ═══════════════════════════════════════════════════
-  //  REVIVE SYSTEM
-  // ═══════════════════════════════════════════════════
-  /** Check if player owns the permanent revive item */
-  private hasReviveAvailable(): boolean {
-    const sdk = (window as any).RemixSDK || (window as any).FarcadeSDK;
-    if (!sdk) return false;
-    return sdk.hasItem ? sdk.hasItem("revive") : false;
-  }
-
-  /** Update HUD revive indicator */
-  private updateReviveIndicator(): void {
-    const available = !this.reviveUsedThisRun && this.hasReviveAvailable();
-    this.hudSystem.setReviveAvailable(available);
-  }
-
-  /** Use revive: consume one, play animation, kill all enemies, restore HP */
-  private useRevive(): void {
-    this.reviveUsedThisRun = true;
-    this.isPlaying = false;
-    this.hudSystem.setReviveAvailable(false);
-
-    // Freeze everything
-    this.haptic();
-
-    // Dark flash
-    this.cameras.main.flash(300, 0, 255, 100);
-
-    // Medusa "hurt" tint
-    this.medusa.sprite.setTint(0xff4444);
-
-    // Phase 1: Pause briefly (300ms), then start revival
-    this.time.delayedCall(300, () => {
-      // Clear hit tint
-      this.medusa.sprite.clearTint();
-
-      // Green glow expanding from Medusa
-      const cx = this.medusa.sprite.x;
-      const cy = this.medusa.sprite.y;
-
-      // Create shockwave rings
-      for (let i = 0; i < 3; i++) {
-        this.time.delayedCall(i * 200, () => {
-          const ring = this.add.circle(cx, cy, 20, 0x000000, 0);
-          ring.setStrokeStyle(4, 0x00ff88, 0.9);
-          ring.setDepth(50);
-
-          this.tweens.add({
-            targets: ring,
-            radius: 400 + i * 80,
-            alpha: 0,
-            duration: 800,
-            ease: "Sine.easeOut",
-            onUpdate: () => {
-              ring.setStrokeStyle(4, 0x00ff88, ring.alpha);
-            },
-            onComplete: () => ring.destroy(),
-          });
-        });
-      }
-
-      // Green flash on Medusa — "revive glow"
-      const glow = this.add.circle(cx, cy, 30, 0x00ff88, 0.6);
-      glow.setDepth(49);
-      this.tweens.add({
-        targets: glow,
-        radius: 120,
-        alpha: 0,
-        duration: 600,
-        ease: "Cubic.easeOut",
-        onComplete: () => glow.destroy(),
-      });
-
-      // Revive text
-      const reviveText = this.add
-        .text(cx, cy - 80, "🧪 REVIVE!", {
-          fontFamily: "monospace",
-          fontSize: "40px",
-          color: "#00ff88",
-          stroke: "#003322",
-          strokeThickness: 6,
-        })
-        .setOrigin(0.5)
-        .setDepth(60);
-
-      this.tweens.add({
-        targets: reviveText,
-        y: cy - 140,
-        alpha: 0,
-        duration: 1200,
-        ease: "Cubic.easeOut",
-        onComplete: () => reviveText.destroy(),
-      });
-
-      // Phase 2: After shockwave (600ms), destroy all enemies
-      this.time.delayedCall(600, () => {
-        const result = this.enemySystem.destroyAllEnemies();
-        this.score += result.points;
-        this.hudSystem.updateScore(this.score, this.highScore);
-        if (result.destroyed > 0) {
-          this.audioSystem.playBreak();
-          this.audioSystem.playKill();
-        }
-
-        // Restore health to 50%
-        this.health = GameSettings.health.max * 0.5;
-        this.hudSystem.updateHealth(this.health / GameSettings.health.max);
-
-        // Restore energy to 50%
-        this.energySystem.setPercent(0.5);
-        this.hudSystem.updateEnergy(this.energySystem.getPercent());
-
-        // Green camera flash
-        this.cameras.main.flash(400, 0, 200, 100);
-
-        // Medusa plays idle
-        this.medusa.isDead = false;
-        this.medusa.isHit = false;
-        this.medusa.sprite.clearTint();
-        this.medusa.playIdle("down");
-
-        // Phase 3: Resume game after a short pause
-        this.time.delayedCall(500, () => {
-          this.isPlaying = true;
-          this.enemySystem.start();
-        });
-      });
     });
   }
 
@@ -556,10 +417,6 @@ export class MedusaScene extends Phaser.Scene {
     this.hudSystem.updateScore(this.score, this.highScore);
     this.hudSystem.updateHealth(1);
     this.hudSystem.updateEnergy(1);
-
-    // Reset revive for new run
-    this.reviveUsedThisRun = false;
-    this.updateReviveIndicator();
 
     // Restart BGM if not playing
     if (this.bgm && !this.bgm.isPlaying) {
@@ -626,16 +483,6 @@ export class MedusaScene extends Phaser.Scene {
         });
       }
 
-      // Listen for revive purchases
-      if (sdk.onPurchaseComplete) {
-        sdk.onPurchaseComplete(() => {
-          this.updateReviveIndicator();
-        });
-      }
-
-      // Update revive indicator with initial state
-      this.updateReviveIndicator();
-
       this.sdkReady = true;
     } catch (e) {
       console.warn("[MedusaScene] SDK init error:", e);
@@ -649,10 +496,10 @@ export class MedusaScene extends Phaser.Scene {
     }
   }
 
-  /** Show tutorial overlay on first visit, otherwise start directly */
+  /** Show tutorial overlay on first visit, otherwise show tap-to-start */
   private showTutorialOrStart(): void {
     if (this.tutorialSeen) {
-      this.startGame();
+      this.showTapToStart();
       return;
     }
 
@@ -660,8 +507,93 @@ export class MedusaScene extends Phaser.Scene {
       this.tutorialOverlay = null;
       this.tutorialSeen = true;
       this.saveTutorialSeen();
-      this.startGame();
+      this.showTapToStart();
     });
+  }
+
+  /** Overlay oscuro con "TAP TO START" — espera input para iniciar cuenta atrás */
+  private showTapToStart(): void {
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+
+    const overlay = this.add
+      .rectangle(w / 2, h / 2, w, h, 0x000000, 0.72)
+      .setDepth(400);
+
+    const tapText = this.add
+      .text(w / 2, h / 2, "TAP TO START", {
+        fontFamily: "monospace",
+        fontSize: "44px",
+        color: "#00ff88",
+        stroke: "#003322",
+        strokeThickness: 6,
+        align: "center",
+      })
+      .setOrigin(0.5)
+      .setDepth(401);
+
+    const pulseTween = this.tweens.add({
+      targets: tapText,
+      alpha: 0.25,
+      duration: 700,
+      yoyo: true,
+      repeat: -1,
+      ease: "Sine.easeInOut",
+    });
+
+    const dismiss = () => {
+      pulseTween.stop();
+      overlay.destroy();
+      tapText.destroy();
+      this.showCountdown();
+    };
+
+    this.input.once("pointerdown", dismiss);
+
+    if (this.input.keyboard) {
+      this.input.keyboard.once("keydown-SPACE", dismiss);
+      this.input.keyboard.once("keydown-ENTER", dismiss);
+    }
+  }
+
+  /** Cuenta atrás 3 → 2 → 1 y arranca el juego */
+  private showCountdown(): void {
+    const w = this.cameras.main.width;
+    const h = this.cameras.main.height;
+
+    const showNumber = (n: number) => {
+      const numText = this.add
+        .text(w / 2, h / 2, `${n}`, {
+          fontFamily: "monospace",
+          fontSize: "200px",
+          color: "#ffffff",
+          stroke: "#000000",
+          strokeThickness: 14,
+          align: "center",
+        })
+        .setOrigin(0.5)
+        .setScale(0.5)
+        .setAlpha(1)
+        .setDepth(401);
+
+      this.tweens.add({
+        targets: numText,
+        scale: 1.6,
+        alpha: 0,
+        duration: 850,
+        ease: "Cubic.easeOut",
+        onComplete: () => {
+          numText.destroy();
+          if (n > 1) {
+            this.time.delayedCall(50, () => showNumber(n - 1));
+          } else {
+            this.startGame();
+          }
+        },
+      });
+    };
+
+    showNumber(3);
   }
 
   /** Persist tutorialSeen flag alongside highScore */
